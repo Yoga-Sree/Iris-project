@@ -1,1 +1,239 @@
-{"cells":[{"cell_type":"code","source":["# iris_classification.py\n","import numpy as np\n","import pandas as pd\n","import matplotlib.pyplot as plt\n","import seaborn as sns\n","from sklearn.datasets import load_iris\n","from sklearn.model_selection import train_test_split\n","from sklearn.preprocessing import StandardScaler\n","from sklearn.linear_model import LogisticRegression\n","from sklearn.neighbors import KNeighborsClassifier\n","from sklearn.svm import SVC\n","from sklearn.tree import DecisionTreeClassifier\n","from sklearn.ensemble import RandomForestClassifier\n","from sklearn.metrics import accuracy_score, classification_report, confusion_matrix\n","import warnings\n","warnings.filterwarnings('ignore')\n","\n","class IrisClassifier:\n","    def __init__(self):\n","        self.data = None\n","        self.X = None\n","        self.y = None\n","        self.X_train = None\n","        self.X_test = None\n","        self.y_train = None\n","        self.y_test = None\n","        self.scaler = StandardScaler()\n","        self.models = {}\n","        self.best_model = None\n","\n","    def load_data(self):\n","        \"\"\"Load and prepare the Iris dataset\"\"\"\n","        iris = load_iris()\n","        self.data = pd.DataFrame(iris.data, columns=iris.feature_names)\n","        self.data['target'] = iris.target\n","        self.data['species'] = self.data['target'].apply(lambda x: iris.target_names[x])\n","\n","        # Separate features and target\n","        self.X = self.data.drop(['target', 'species'], axis=1)\n","        self.y = self.data['target']\n","\n","        print(\"Dataset loaded successfully!\")\n","        print(f\"Dataset shape: {self.data.shape}\")\n","        print(\"\\nFirst 5 rows:\")\n","        print(self.data.head())\n","\n","    def explore_data(self):\n","        \"\"\"Explore the dataset with visualizations\"\"\"\n","        print(\"\\n=== Dataset Exploration ===\\n\")\n","\n","        # Basic info\n","        print(\"Dataset Info:\")\n","        print(self.data.info())\n","\n","        # Statistical summary\n","        print(\"\\nStatistical Summary:\")\n","        print(self.data.describe())\n","\n","        # Class distribution\n","        print(\"\\nClass Distribution:\")\n","        print(self.data['species'].value_counts())\n","\n","        # Visualizations\n","        fig, axes = plt.subplots(2, 2, figsize=(12, 10))\n","        fig.suptitle('Iris Dataset Exploration', fontsize=16)\n","\n","        # Feature distributions\n","        sns.histplot(data=self.data, x='sepal length (cm)', hue='species', kde=True, ax=axes[0, 0])\n","        sns.histplot(data=self.data, x='sepal width (cm)', hue='species', kde=True, ax=axes[0, 1])\n","        sns.histplot(data=self.data, x='petal length (cm)', hue='species', kde=True, ax=axes[1, 0])\n","        sns.histplot(data=self.data, x='petal width (cm)', hue='species', kde=True, ax=axes[1, 1])\n","\n","        plt.tight_layout()\n","        plt.savefig('iris_distributions.png')\n","        plt.close()\n","\n","        # Pairplot\n","        pairplot = sns.pairplot(self.data, hue='species', diag_kind='hist')\n","        pairplot.fig.suptitle('Pairplot of Iris Features', y=1.02)\n","        plt.savefig('iris_pairplot.png')\n","        plt.close()\n","\n","        # Correlation heatmap\n","        plt.figure(figsize=(8, 6))\n","        sns.heatmap(self.data.drop('target', axis=1).corr(), annot=True, cmap='coolwarm', center=0)\n","        plt.title('Feature Correlation Heatmap')\n","        plt.tight_layout()\n","        plt.savefig('iris_correlation.png')\n","        plt.close()\n","\n","        print(\"\\nExploratory visualizations saved as PNG files.\")\n","\n","    def preprocess_data(self):\n","        \"\"\"Split and scale the data\"\"\"\n","        # Split the data\n","        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(\n","            self.X, self.y, test_size=0.2, random_state=42, stratify=self.y\n","        )\n","\n","        # Scale the features\n","        self.X_train = self.scaler.fit_transform(self.X_train)\n","        self.X_test = self.scaler.transform(self.X_test)\n","\n","        print(\"\\n=== Data Preprocessing ===\\n\")\n","        print(f\"Training set shape: {self.X_train.shape}\")\n","        print(f\"Testing set shape: {self.X_test.shape}\")\n","\n","    def train_models(self):\n","        \"\"\"Train multiple classification models\"\"\"\n","        print(\"\\n=== Training Models ===\\n\")\n","\n","        # Define models to train\n","        models = {\n","            'Logistic Regression': LogisticRegression(random_state=42),\n","            'K-Nearest Neighbors': KNeighborsClassifier(),\n","            'Support Vector Machine': SVC(random_state=42),\n","            'Decision Tree': DecisionTreeClassifier(random_state=42),\n","            'Random Forest': RandomForestClassifier(random_state=42)\n","        }\n","\n","        # Train each model\n","        for name, model in models.items():\n","            model.fit(self.X_train, self.y_train)\n","            self.models[name] = model\n","            train_score = model.score(self.X_train, self.y_train)\n","            test_score = model.score(self.X_test, self.y_test)\n","            print(f\"{name}: Train Accuracy = {train_score:.4f}, Test Accuracy = {test_score:.4f}\")\n","\n","        # Select the best model based on test accuracy\n","        self.best_model = max(self.models.items(), key=lambda x: x[1].score(self.X_test, self.y_test))\n","        print(f\"\\nBest Model: {self.best_model[0]} with test accuracy: {self.best_model[1].score(self.X_test, self.y_test):.4f}\")\n","\n","    def evaluate_model(self, model_name=None):\n","        \"\"\"Evaluate the specified model or the best model\"\"\"\n","        if model_name is None:\n","            model = self.best_model[1]\n","            model_name = self.best_model[0]\n","        else:\n","            model = self.models[model_name]\n","\n","        print(f\"\\n=== Evaluating {model_name} ===\\n\")\n","\n","        # Make predictions\n","        y_pred = model.predict(self.X_test)\n","\n","        # Calculate accuracy\n","        accuracy = accuracy_score(self.y_test, y_pred)\n","        print(f\"Accuracy: {accuracy:.4f}\")\n","\n","        # Classification report\n","        print(\"\\nClassification Report:\")\n","        print(classification_report(self.y_test, y_pred,\n","                                   target_names=load_iris().target_names))\n","\n","        # Confusion matrix\n","        plt.figure(figsize=(8, 6))\n","        cm = confusion_matrix(self.y_test, y_pred)\n","        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',\n","                    xticklabels=load_iris().target_names,\n","                    yticklabels=load_iris().target_names)\n","        plt.title(f'Confusion Matrix - {model_name}')\n","        plt.ylabel('True Label')\n","        plt.xlabel('Predicted Label')\n","        plt.tight_layout()\n","        plt.savefig(f'confusion_matrix_{model_name.lower().replace(\" \", \"_\")}.png')\n","        plt.close()\n","        print(f\"Confusion matrix saved as 'confusion_matrix_{model_name.lower().replace(' ', '_')}.png'\")\n","\n","    def predict_new_sample(self, sepal_length, sepal_width, petal_length, petal_width):\n","        \"\"\"Predict the class of a new sample\"\"\"\n","        if self.best_model is None:\n","            print(\"Please train the model first!\")\n","            return\n","\n","        # Create sample array\n","        sample = np.array([[sepal_length, sepal_width, petal_length, petal_width]])\n","\n","        # Scale the sample\n","        sample_scaled = self.scaler.transform(sample)\n","\n","        # Make prediction\n","        prediction = self.best_model[1].predict(sample_scaled)\n","        probabilities = self.best_model[1].predict_proba(sample_scaled)\n","\n","        # Get class name\n","        class_name = load_iris().target_names[prediction[0]]\n","\n","        print(f\"\\n=== Prediction Result ===\\n\")\n","        print(f\"Input Features: Sepal Length={sepal_length}, Sepal Width={sepal_width}, \"\n","              f\"Petal Length={petal_length}, Petal Width={petal_width}\")\n","        print(f\"Predicted Class: {class_name} (Class ID: {prediction[0]})\")\n","        print(\"Prediction Probabilities:\")\n","        for i, prob in enumerate(probabilities[0]):\n","            print(f\"  {load_iris().target_names[i]}: {prob:.4f}\")\n","\n","        return class_name, probabilities\n","\n","def main():\n","    \"\"\"Main function to run the complete ML pipeline\"\"\"\n","    print(\"=\" * 50)\n","    print(\"Iris Flower Classification Project\")\n","    print(\"=\" * 50)\n","\n","    # Initialize the classifier\n","    iris_clf = IrisClassifier()\n","\n","    # Load data\n","    iris_clf.load_data()\n","\n","    # Explore data\n","    iris_clf.explore_data()\n","\n","    # Preprocess data\n","    iris_clf.preprocess_data()\n","\n","    # Train models\n","    iris_clf.train_models()\n","\n","    # Evaluate the best model\n","    iris_clf.evaluate_model()\n","\n","    # Make some sample predictions\n","    print(\"\\n=== Sample Predictions ===\")\n","    samples = [\n","        [5.1, 3.5, 1.4, 0.2],  # Setosa\n","        [6.0, 2.7, 5.1, 1.6],  # Virginica\n","        [5.7, 2.8, 4.1, 1.3]   # Versicolor\n","    ]\n","\n","    for i, sample in enumerate(samples):\n","        print(f\"\\nSample {i+1}:\")\n","        iris_clf.predict_new_sample(*sample)\n","\n","    print(\"\\n\" + \"=\" * 50)\n","    print(\"Project completed successfully!\")\n","    print(\"=\" * 50)\n","\n","if __name__ == \"__main__\":\n","    main()"],"metadata":{"id":"Aq_3honB-gOt","executionInfo":{"status":"error","timestamp":1757782100406,"user_tz":-330,"elapsed":10216,"user":{"displayName":"","userId":""}},"outputId":"9046067a-d714-4bb8-a197-8b9942f5bbd3","colab":{"base_uri":"https://localhost:8080/","height":1000}},"execution_count":1,"outputs":[{"output_type":"stream","name":"stdout","text":["==================================================\n","Iris Flower Classification Project\n","==================================================\n","Dataset loaded successfully!\n","Dataset shape: (150, 6)\n","\n","First 5 rows:\n","   sepal length (cm)  sepal width (cm)  petal length (cm)  petal width (cm)  \\\n","0                5.1               3.5                1.4               0.2   \n","1                4.9               3.0                1.4               0.2   \n","2                4.7               3.2                1.3               0.2   \n","3                4.6               3.1                1.5               0.2   \n","4                5.0               3.6                1.4               0.2   \n","\n","   target species  \n","0       0  setosa  \n","1       0  setosa  \n","2       0  setosa  \n","3       0  setosa  \n","4       0  setosa  \n","\n","=== Dataset Exploration ===\n","\n","Dataset Info:\n","<class 'pandas.core.frame.DataFrame'>\n","RangeIndex: 150 entries, 0 to 149\n","Data columns (total 6 columns):\n"," #   Column             Non-Null Count  Dtype  \n","---  ------             --------------  -----  \n"," 0   sepal length (cm)  150 non-null    float64\n"," 1   sepal width (cm)   150 non-null    float64\n"," 2   petal length (cm)  150 non-null    float64\n"," 3   petal width (cm)   150 non-null    float64\n"," 4   target             150 non-null    int64  \n"," 5   species            150 non-null    object \n","dtypes: float64(4), int64(1), object(1)\n","memory usage: 7.2+ KB\n","None\n","\n","Statistical Summary:\n","       sepal length (cm)  sepal width (cm)  petal length (cm)  \\\n","count         150.000000        150.000000         150.000000   \n","mean            5.843333          3.057333           3.758000   \n","std             0.828066          0.435866           1.765298   \n","min             4.300000          2.000000           1.000000   \n","25%             5.100000          2.800000           1.600000   \n","50%             5.800000          3.000000           4.350000   \n","75%             6.400000          3.300000           5.100000   \n","max             7.900000          4.400000           6.900000   \n","\n","       petal width (cm)      target  \n","count        150.000000  150.000000  \n","mean           1.199333    1.000000  \n","std            0.762238    0.819232  \n","min            0.100000    0.000000  \n","25%            0.300000    0.000000  \n","50%            1.300000    1.000000  \n","75%            1.800000    2.000000  \n","max            2.500000    2.000000  \n","\n","Class Distribution:\n","species\n","setosa        50\n","versicolor    50\n","virginica     50\n","Name: count, dtype: int64\n"]},{"output_type":"error","ename":"ValueError","evalue":"could not convert string to float: np.str_('setosa')","traceback":["\u001b[0;31m---------------------------------------------------------------------------\u001b[0m","\u001b[0;31mValueError\u001b[0m                                Traceback (most recent call last)","\u001b[0;32m/tmp/ipython-input-1139592355.py\u001b[0m in \u001b[0;36m<cell line: 0>\u001b[0;34m()\u001b[0m\n\u001b[1;32m    237\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    238\u001b[0m \u001b[0;32mif\u001b[0m \u001b[0m__name__\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m\"__main__\"\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 239\u001b[0;31m     \u001b[0mmain\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m","\u001b[0;32m/tmp/ipython-input-1139592355.py\u001b[0m in \u001b[0;36mmain\u001b[0;34m()\u001b[0m\n\u001b[1;32m    209\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    210\u001b[0m     \u001b[0;31m# Explore data\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 211\u001b[0;31m     \u001b[0miris_clf\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mexplore_data\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    212\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    213\u001b[0m     \u001b[0;31m# Preprocess data\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;32m/tmp/ipython-input-1139592355.py\u001b[0m in \u001b[0;36mexplore_data\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m     83\u001b[0m         \u001b[0;31m# Correlation heatmap\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     84\u001b[0m         \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfigure\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mfigsize\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;36m8\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;36m6\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 85\u001b[0;31m         \u001b[0msns\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mheatmap\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdata\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdrop\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'target'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m1\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcorr\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mannot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mTrue\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcmap\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'coolwarm'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcenter\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m0\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     86\u001b[0m         \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mtitle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'Feature Correlation Heatmap'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     87\u001b[0m         \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mtight_layout\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;32m/usr/local/lib/python3.12/dist-packages/pandas/core/frame.py\u001b[0m in \u001b[0;36mcorr\u001b[0;34m(self, method, min_periods, numeric_only)\u001b[0m\n\u001b[1;32m  11047\u001b[0m         \u001b[0mcols\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mdata\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcolumns\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m  11048\u001b[0m         \u001b[0midx\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mcols\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcopy\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m> 11049\u001b[0;31m         \u001b[0mmat\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mdata\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mto_numpy\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mfloat\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mna_value\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mnp\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mnan\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcopy\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mFalse\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m  11050\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m  11051\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mmethod\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m\"pearson\"\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;32m/usr/local/lib/python3.12/dist-packages/pandas/core/frame.py\u001b[0m in \u001b[0;36mto_numpy\u001b[0;34m(self, dtype, copy, na_value)\u001b[0m\n\u001b[1;32m   1991\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mdtype\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1992\u001b[0m             \u001b[0mdtype\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mnp\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1993\u001b[0;31m         \u001b[0mresult\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_mgr\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mas_array\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcopy\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mcopy\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mna_value\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mna_value\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1994\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mresult\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdtype\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0mdtype\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1995\u001b[0m             \u001b[0mresult\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mnp\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0masarray\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mresult\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mdtype\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;32m/usr/local/lib/python3.12/dist-packages/pandas/core/internals/managers.py\u001b[0m in \u001b[0;36mas_array\u001b[0;34m(self, dtype, copy, na_value)\u001b[0m\n\u001b[1;32m   1692\u001b[0m                 \u001b[0marr\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mflags\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mwriteable\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;32mFalse\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1693\u001b[0m         \u001b[0;32melse\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1694\u001b[0;31m             \u001b[0marr\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_interleave\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mna_value\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mna_value\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1695\u001b[0m             \u001b[0;31m# The underlying data was copied within _interleave, so no need\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1696\u001b[0m             \u001b[0;31m# to further copy if copy=True or setting na_value\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;32m/usr/local/lib/python3.12/dist-packages/pandas/core/internals/managers.py\u001b[0m in \u001b[0;36m_interleave\u001b[0;34m(self, dtype, na_value)\u001b[0m\n\u001b[1;32m   1751\u001b[0m             \u001b[0;32melse\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1752\u001b[0m                 \u001b[0marr\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mget_values\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1753\u001b[0;31m             \u001b[0mresult\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mrl\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mindexer\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0marr\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1754\u001b[0m             \u001b[0mitemmask\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mrl\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mindexer\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;36m1\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1755\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n","\u001b[0;31mValueError\u001b[0m: could not convert string to float: np.str_('setosa')"]},{"output_type":"display_data","data":{"text/plain":["<Figure size 800x600 with 0 Axes>"]},"metadata":{}}]}],"metadata":{"colab":{"name":"Welcome To Colab","toc_visible":true,"provenance":[{"file_id":"/v2/external/notebooks/intro.ipynb","timestamp":1757782535565}]},"kernelspec":{"display_name":"Python 3","name":"python3"}},"nbformat":4,"nbformat_minor":0}
+# iris_classification.py
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import warnings
+warnings.filterwarnings('ignore')
+
+class IrisClassifier:
+    def __init__(self):
+        self.data = None
+        self.X = None
+        self.y = None
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
+        self.scaler = StandardScaler()
+        self.models = {}
+        self.best_model = None
+        
+    def load_data(self):
+        """Load and prepare the Iris dataset"""
+        iris = load_iris()
+        self.data = pd.DataFrame(iris.data, columns=iris.feature_names)
+        self.data['target'] = iris.target
+        self.data['species'] = self.data['target'].apply(lambda x: iris.target_names[x])
+        
+        # Separate features and target
+        self.X = self.data.drop(['target', 'species'], axis=1)
+        self.y = self.data['target']
+        
+        print("Dataset loaded successfully!")
+        print(f"Dataset shape: {self.data.shape}")
+        print("\nFirst 5 rows:")
+        print(self.data.head())
+        
+    def explore_data(self):
+        """Explore the dataset with visualizations"""
+        print("\n=== Dataset Exploration ===\n")
+        
+        # Basic info
+        print("Dataset Info:")
+        print(self.data.info())
+        
+        # Statistical summary
+        print("\nStatistical Summary:")
+        print(self.data.describe())
+        
+        # Class distribution
+        print("\nClass Distribution:")
+        print(self.data['species'].value_counts())
+        
+        # Visualizations
+        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        fig.suptitle('Iris Dataset Exploration', fontsize=16)
+        
+        # Feature distributions
+        sns.histplot(data=self.data, x='sepal length (cm)', hue='species', kde=True, ax=axes[0, 0])
+        sns.histplot(data=self.data, x='sepal width (cm)', hue='species', kde=True, ax=axes[0, 1])
+        sns.histplot(data=self.data, x='petal length (cm)', hue='species', kde=True, ax=axes[1, 0])
+        sns.histplot(data=self.data, x='petal width (cm)', hue='species', kde=True, ax=axes[1, 1])
+        
+        plt.tight_layout()
+        plt.savefig('iris_distributions.png')
+        plt.close()
+        
+        # Pairplot
+        pairplot = sns.pairplot(self.data, hue='species', diag_kind='hist')
+        pairplot.fig.suptitle('Pairplot of Iris Features', y=1.02)
+        plt.savefig('iris_pairplot.png')
+        plt.close()
+        
+        # Correlation heatmap
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(self.data.drop('target', axis=1).corr(), annot=True, cmap='coolwarm', center=0)
+        plt.title('Feature Correlation Heatmap')
+        plt.tight_layout()
+        plt.savefig('iris_correlation.png')
+        plt.close()
+        
+        print("\nExploratory visualizations saved as PNG files.")
+        
+    def preprocess_data(self):
+        """Split and scale the data"""
+        # Split the data
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+            self.X, self.y, test_size=0.2, random_state=42, stratify=self.y
+        )
+        
+        # Scale the features
+        self.X_train = self.scaler.fit_transform(self.X_train)
+        self.X_test = self.scaler.transform(self.X_test)
+        
+        print("\n=== Data Preprocessing ===\n")
+        print(f"Training set shape: {self.X_train.shape}")
+        print(f"Testing set shape: {self.X_test.shape}")
+        
+    def train_models(self):
+        """Train multiple classification models"""
+        print("\n=== Training Models ===\n")
+        
+        # Define models to train
+        models = {
+            'Logistic Regression': LogisticRegression(random_state=42),
+            'K-Nearest Neighbors': KNeighborsClassifier(),
+            'Support Vector Machine': SVC(random_state=42),
+            'Decision Tree': DecisionTreeClassifier(random_state=42),
+            'Random Forest': RandomForestClassifier(random_state=42)
+        }
+        
+        # Train each model
+        for name, model in models.items():
+            model.fit(self.X_train, self.y_train)
+            self.models[name] = model
+            train_score = model.score(self.X_train, self.y_train)
+            test_score = model.score(self.X_test, self.y_test)
+            print(f"{name}: Train Accuracy = {train_score:.4f}, Test Accuracy = {test_score:.4f}")
+            
+        # Select the best model based on test accuracy
+        self.best_model = max(self.models.items(), key=lambda x: x[1].score(self.X_test, self.y_test))
+        print(f"\nBest Model: {self.best_model[0]} with test accuracy: {self.best_model[1].score(self.X_test, self.y_test):.4f}")
+        
+    def evaluate_model(self, model_name=None):
+        """Evaluate the specified model or the best model"""
+        if model_name is None:
+            model = self.best_model[1]
+            model_name = self.best_model[0]
+        else:
+            model = self.models[model_name]
+            
+        print(f"\n=== Evaluating {model_name} ===\n")
+        
+        # Make predictions
+        y_pred = model.predict(self.X_test)
+        
+        # Calculate accuracy
+        accuracy = accuracy_score(self.y_test, y_pred)
+        print(f"Accuracy: {accuracy:.4f}")
+        
+        # Classification report
+        print("\nClassification Report:")
+        print(classification_report(self.y_test, y_pred, 
+                                   target_names=load_iris().target_names))
+        
+        # Confusion matrix
+        plt.figure(figsize=(8, 6))
+        cm = confusion_matrix(self.y_test, y_pred)
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=load_iris().target_names,
+                    yticklabels=load_iris().target_names)
+        plt.title(f'Confusion Matrix - {model_name}')
+        plt.ylabel('True Label')
+        plt.xlabel('Predicted Label')
+        plt.tight_layout()
+        plt.savefig(f'confusion_matrix_{model_name.lower().replace(" ", "_")}.png')
+        plt.close()
+        print(f"Confusion matrix saved as 'confusion_matrix_{model_name.lower().replace(' ', '_')}.png'")
+        
+    def predict_new_sample(self, sepal_length, sepal_width, petal_length, petal_width):
+        """Predict the class of a new sample"""
+        if self.best_model is None:
+            print("Please train the model first!")
+            return
+            
+        # Create sample array
+        sample = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
+        
+        # Scale the sample
+        sample_scaled = self.scaler.transform(sample)
+        
+        # Make prediction
+        prediction = self.best_model[1].predict(sample_scaled)
+        probabilities = self.best_model[1].predict_proba(sample_scaled)
+        
+        # Get class name
+        class_name = load_iris().target_names[prediction[0]]
+        
+        print(f"\n=== Prediction Result ===\n")
+        print(f"Input Features: Sepal Length={sepal_length}, Sepal Width={sepal_width}, "
+              f"Petal Length={petal_length}, Petal Width={petal_width}")
+        print(f"Predicted Class: {class_name} (Class ID: {prediction[0]})")
+        print("Prediction Probabilities:")
+        for i, prob in enumerate(probabilities[0]):
+            print(f"  {load_iris().target_names[i]}: {prob:.4f}")
+            
+        return class_name, probabilities
+
+def main():
+    """Main function to run the complete ML pipeline"""
+    print("=" * 50)
+    print("Iris Flower Classification Project")
+    print("=" * 50)
+    
+    # Initialize the classifier
+    iris_clf = IrisClassifier()
+    
+    # Load data
+    iris_clf.load_data()
+    
+    # Explore data
+    iris_clf.explore_data()
+    
+    # Preprocess data
+    iris_clf.preprocess_data()
+    
+    # Train models
+    iris_clf.train_models()
+    
+    # Evaluate the best model
+    iris_clf.evaluate_model()
+    
+    # Make some sample predictions
+    print("\n=== Sample Predictions ===")
+    samples = [
+        [5.1, 3.5, 1.4, 0.2],  # Setosa
+        [6.0, 2.7, 5.1, 1.6],  # Virginica
+        [5.7, 2.8, 4.1, 1.3]   # Versicolor
+    ]
+    
+    for i, sample in enumerate(samples):
+        print(f"\nSample {i+1}:")
+        iris_clf.predict_new_sample(*sample)
+    
+    print("\n" + "=" * 50)
+    print("Project completed successfully!")
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
